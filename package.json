@@ -1,0 +1,19 @@
+{
+  "name": "sqljs-orm",
+  "version": "0.0.1",
+  "description": "websql orm for js",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo ''"
+  },
+  "keywords": [
+    "orm"
+  ],
+  "type": "module",
+  "author": "jarvisuperuser",
+  "license": "MIT",
+  "dependencies": {
+    "sqlite": "^5.0.1",
+    "sqlite3": "^5.1.6"
+  }
+}
