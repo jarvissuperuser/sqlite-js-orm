@@ -1,7 +1,7 @@
 import { columnsMixin, refMixin} from "../modelling/index.js";
 import {modelMixin} from "../modelling/abstractions.js";
 
-export class Users {
+export class User {
     constructor() {
         this.firstName = '';
         this.lastName = '';
@@ -10,7 +10,7 @@ export class Users {
         this.id = 0;
     }
 }
-export class UsersModel extends modelMixin(Users) {
+export class UsersModel extends modelMixin(User) {
     describe() {
         this.firstName = this.prop().string(48).n();
         this.lastName = this.prop().string().nn();

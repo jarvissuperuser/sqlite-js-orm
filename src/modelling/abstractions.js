@@ -156,30 +156,46 @@ export const modelMixin = model => class extends model {
         return new ColumnBuilder();
     }
 
+    async create() {
+        const {sql, db} = this.sql();
+        return await db.executeRaw(sql.createTable(this._prepTable()));
+    }
+
     /**
      * @param {function} where
      * */
     async findAll(where = _=> ({})) {
-        const table = {};
-        table[model.name] = this.describe();
-        console.log({findAll: this.constructor.name})
-        const sql = this.sql();
-        const db = this.dbConnect();
-        const query = sql.select(model.name, this, where, table);
+        const {sql, db, tableName} = this.sql();
+        const query = sql.select(tableName, this, where, this._prepTable());
+        console.log(query);
         const prep = sql.dataPrep(where);
         const results = (await db.query(query,prep)).map(result => this._get(result))
         return results;
     }
 
-    async find(where = _=> ({})) {
+    async find(where = _ => ({})) {
         return (await this.findAll(where))[0];
     }
 
-    sql() {
-        return new SqlBuilder();
+    async update(data = {}, where =  _ => ({})) {
+        const {sql, db, tableName} = this.sql();
+        const query = sql.update(tableName,data,where,this._prepTable());
+        const prep = sql.dataPrep(({}) => ({...data}));
+        return (await db.execute(query,prep))
     }
-    dbConnect () {
-        return new Connection(npmConnection);
+
+    async add(data) {
+        const {sql, db, tableName} = this.sql();
+        const query = sql.insert(tableName,data,this._prepTable());
+        const prep = sql.dataPrep(({}) => ({...data}));
+        return (await db.execute(query,prep));
+    }
+
+    async delete(where = _ => ({})){
+        const {} = this.sql();
+    }
+    sql() {
+        return {sql: new SqlBuilder(), db: new Connection(npmConnection), tableName: this.constructor.name.replace(DESCRIPTION, '')}
     }
     _get (result = {}){
         const mdl = new model();
@@ -187,5 +203,11 @@ export const modelMixin = model => class extends model {
             mdl[k] = v;
         })
         return mdl;
+    }
+    _prepTable() {
+        const table = {};
+        const tableName = this.constructor.name.replace(DESCRIPTION,'');
+        table[tableName] = this.describe();
+        return table;
     }
 }
