@@ -1,9 +1,9 @@
-import { columnsMixin, refMixin } from "../modelling/index.js";
+import {  refMixin } from "../modelling/index.js";
 import {UsersModel} from "./user.model.js";
 import {modelMixin} from "../modelling/abstractions.js";
 
 
-export class Files {
+export class File {
     constructor() {
         this.id = 0;
         this.userId = 0;
@@ -11,7 +11,7 @@ export class Files {
         this.fileData = undefined;
     }
 }
-export class FilesModel extends modelMixin(refMixin(Files)){
+export class FilesModel extends modelMixin(refMixin(File)){
     describe() {
         this.id = this.prop().p().int().nn();
         this.userId = this.prop().nn().int();

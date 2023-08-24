@@ -113,7 +113,7 @@ export class SqlBuilder {
         const terms = [];
         const vals = {};
         for (const columnName in data) {
-            if (dataColumns.includes(columnName)){
+            if (dataColumns.includes(columnName) && columnName !== 'refs'){
                 columns.push(columnName);
                 terms.push(`:${columnName}`);
                 vals[`:${columnName}`]=(data[columnName]);
@@ -141,9 +141,9 @@ export class SqlBuilder {
         const dataColumns = Object.keys(tables[table]);
         const columns = []
         for (const columnName in data) {
-            if (dataColumns.includes(columnName)) {
+
+            if (dataColumns.includes(columnName) && columnName !== 'refs') {
                 columns.push(columnName);
-                
             }
         }
         return SELECT.replace(TABLE,table)
@@ -162,17 +162,12 @@ export class SqlBuilder {
         let whereStr = whereRaw.split('=>')[0];
         let whereClause = '';
         const whereClauseLex = where({});
-
-
         if (!whereStr || whereStr === 'null' || whereStr === 'true') throw new Error('Unsupported where clause');
         Object.entries(whereClauseLex).forEach(([k,v]) => {
-
             whereClause = ( !!v.push ) ?
                 whereClause = `${whereClause} ${v.map((item) => {
                     return Object.entries(item).map(this._conditioner);
                 }).join(` ${k} `)} `: this._conditioner([k,v]);
-
-
         });
 
         return whereClause;
@@ -189,6 +184,7 @@ export class SqlBuilder {
     }
     _innerData(format,data ={}) {
         Object.entries(data).forEach(([k,v]) => {
+            if (k !=='refs')
             switch (typeof v){
                 case 'object':
                     const opKey = Object.keys(v)[0];
@@ -205,6 +201,7 @@ export class SqlBuilder {
         const data = where({});
         let format = {}
         Object.entries(data).forEach(([k,v]) => {
+            if (v && k !== 'refs')
             (!!v.push) ? v.forEach(item => {
                 format = this._innerData(format, item);
                 console.log(item,format)
