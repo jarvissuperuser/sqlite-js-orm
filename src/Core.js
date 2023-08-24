@@ -1,5 +1,18 @@
 import { ReferenceBuilder } from "./modelling/abstractions.js";
-import { CREATETABLE, TABLE, COLUMNS, TERMS, INSERT, VALUES, UPDATE, REFERENCE, SELECT, DELETE } from "./terms/sql.terms.js";
+import {
+    CREATETABLE,
+    TABLE,
+    COLUMNS,
+    TERMS,
+    INSERT,
+    VALUES,
+    UPDATE,
+    REFERENCE,
+    SELECT,
+    DELETE,
+    WHERE,
+    CLAUSE, NOTEQ, EQ
+} from "./terms/sql.terms.js";
 import { ColumnInfo, ReferenceInfo, columnType, indices, nullability } from "./types/index.js";
 
 
@@ -70,7 +83,7 @@ const refBuilder =  {
 
 export class SqlBuilder {
     
-    CreateTable(tableConfig) {
+    createTable(tableConfig) {
         let sql = '';
         let columnSql = '';
         const colBuilder = new ColumnInfoBuilder();
@@ -94,42 +107,37 @@ export class SqlBuilder {
         return sql;
     }
 
-    Insert(table, data, tables = {}) {
+    insert(table, data, tables = {}) {
         const dataColumns = Object.keys(tables[table]);
         const columns = [];
         const terms = [];
-        const vals = [];
+        const vals = {};
         for (const columnName in data) {
             if (dataColumns.includes(columnName)){
                 columns.push(columnName);
-                terms.push('?');
-                vals.push(data[columnName]);
+                terms.push(`:${columnName}`);
+                vals[`:${columnName}`]=(data[columnName]);
             }
         }
-        return [INSERT.replace(TABLE,table)
+        return INSERT.replace(TABLE,table)
             .replace(COLUMNS, columns.join(','))
-            .replace(VALUES, terms.join(',')), vals]
+            .replace(VALUES, terms.join(','))
     }
 
-    Update(table, data, term = undefined ,tables = {}) {
+    update(table, data, where= _ => _ , tables = {}) {
         const dataColumns = Object.keys(tables[table]);
         const columns = [];
-        let val = [];
         for (const columnName in data) {
             if (dataColumns.includes(columnName)){
-                columns.push(`${columnName} = ?`);
-                val.push(data[columnName]);
-                if (!term && tables[table][columnName].indexing === indices.PRIMARY){
-                    term = `${columnName} = '${data[columnName]}'`
-                }
+                columns.push(`${columnName} = :${columnName}`);
             }
         }
-        return [UPDATE.replace(TABLE, table)
+        return UPDATE.replace(TABLE, table)
             .replace(COLUMNS,columns.join(','))
-            .replace(TERMS, term), val ];
+            .replace(CLAUSE, this._whereProcessor(where));
 
     }
-    Select(table, data,term, tables = {}) {
+    select(table, data, where = _ => _ , tables = {}) {
         const dataColumns = Object.keys(tables[table]);
         const columns = []
         for (const columnName in data) {
@@ -140,11 +148,68 @@ export class SqlBuilder {
         }
         return SELECT.replace(TABLE,table)
             .replace(COLUMNS,columns.join(','))
-            .replace(TERMS,term);
+            .replace(CLAUSE,this._whereProcessor(where));
 
     }
-    Delete(table, term) {
+    delete(table, where = _ => _) {
         return DELETE.replace(TABLE, table)
-            .replace(TERMS, term);
+            .replace(CLAUSE, this._whereProcessor(where));
+    }
+
+    _whereProcessor(where) {
+        if (typeof where !== "function") throw new Error('Unsupported where clause');
+        const whereRaw = where.toString();
+        let whereStr = whereRaw.split('=>')[0];
+        let whereClause = '';
+        const whereClauseLex = where({});
+
+
+        if (!whereStr || whereStr === 'null' || whereStr === 'true') throw new Error('Unsupported where clause');
+        Object.entries(whereClauseLex).forEach(([k,v]) => {
+
+            whereClause = ( !!v.push ) ?
+                whereClause = `${whereClause} ${v.map((item) => {
+                    return Object.entries(item).map(this._conditioner);
+                }).join(` ${k} `)} `: this._conditioner([k,v]);
+
+
+        });
+
+        return whereClause;
+    }
+    _conditioner = ([ky,vl]) => {
+        switch (typeof vl){
+            case 'object':
+                const opKey = Object.keys(vl)[0];
+                const op = WHERE()[opKey];
+                return `(${ky} ${op} :${ky})`
+            default:
+                return `(${ky} ${EQ} :${ky})`
+        }
+    }
+    _innerData(format,data ={}) {
+        Object.entries(data).forEach(([k,v]) => {
+            switch (typeof v){
+                case 'object':
+                    const opKey = Object.keys(v)[0];
+                    (!!v.getDate)? format[`:${k}`] = v:
+                    format[`:${k}`] = v[opKey];
+                    break;
+                default:
+                    format[`:${k}`] = v;
+            }
+        });
+        return format;
+    }
+    dataPrep(where = _ => ({})) {
+        const data = where({});
+        let format = {}
+        Object.entries(data).forEach(([k,v]) => {
+            (!!v.push) ? v.forEach(item => {
+                format = this._innerData(format, item);
+                console.log(item,format)
+            }): format = this._innerData(format, data);
+        })
+        return format;
     }
 }

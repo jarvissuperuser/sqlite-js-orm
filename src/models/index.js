@@ -1,2 +1,2 @@
-export {User, UsersDescription} from './user.model.js';
-export {File, FilesDescription} from './file.model.js';
+export {Users, UsersModel} from './user.model.js';
+export {Files, FilesModel} from './file.model.js';
