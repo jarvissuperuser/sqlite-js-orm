@@ -1,4 +1,6 @@
 import { ColumnInfo, ReferenceInfo, columnType, indices, nullability } from "../types/index.js"
+import {SqlBuilder} from "../Core.js";
+import {Connection, npmConnection} from "../connect/index.js";
 
 export const columnsMixin = base => class extends base {
     prop() {
@@ -119,9 +121,9 @@ export class ReferenceBuilder extends ReferenceInfo {
     }
 
 }
-const DESCRIPTION ='Description';
+const DESCRIPTION ='Model';
 
-export const dbTableDefiner = function() {
+export const dbContext = function() {
 
     const tableDef = {};
     for (let i = 0; i < arguments.length; i++){
@@ -146,4 +148,44 @@ export const idExtract = (description) => {
     return Object.keys(description)
         .filter(d => description[d].indexing === indices.PRIMARY)
         ;
+}
+
+
+export const modelMixin = model => class extends model {
+    prop() {
+        return new ColumnBuilder();
+    }
+
+    /**
+     * @param {function} where
+     * */
+    async findAll(where = _=> ({})) {
+        const table = {};
+        table[model.name] = this.describe();
+        console.log({findAll: this.constructor.name})
+        const sql = this.sql();
+        const db = this.dbConnect();
+        const query = sql.select(model.name, this, where, table);
+        const prep = sql.dataPrep(where);
+        const results = (await db.query(query,prep)).map(result => this._get(result))
+        return results;
+    }
+
+    async find(where = _=> ({})) {
+        return (await this.findAll(where))[0];
+    }
+
+    sql() {
+        return new SqlBuilder();
+    }
+    dbConnect () {
+        return new Connection(npmConnection);
+    }
+    _get (result = {}){
+        const mdl = new model();
+        Object.entries(result).forEach(([k,v]) => {
+            mdl[k] = v;
+        })
+        return mdl;
+    }
 }
